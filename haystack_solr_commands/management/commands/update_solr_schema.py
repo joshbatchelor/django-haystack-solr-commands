@@ -1,6 +1,5 @@
 from __future__ import print_function
 from __future__ import unicode_literals
-from optparse import make_option
 import sys
 
 from django.core.exceptions import ImproperlyConfigured
@@ -13,27 +12,45 @@ from haystack import constants
 
 class Command(BaseCommand):
     help = """Generates a Solr schema that reflects the indexes.
-    A modified version of the official build_solr_schema support both Solr 5.0.0 and 4.2.10 (if using parameter -f or -s)
+    A modified version of the official build_solr_schema support
+    both Solr 5.0.0 and 4.2.10 (if using parameter -f or -s)
     """
-    base_options = (
-        make_option("-f", "--filename", action="store", type="string", dest="filename",
-                help='For Solr before 5.0.0. If provided, directs output to a XML schema.'),
-        make_option("-s", "--stdout", action="store_true", dest="stdout",
-            help='For Solr before 5.0.0, print on stdout the schema.xml', default=False),
-        make_option("-u", "--using", action="store", type="string", dest="using", default=constants.DEFAULT_ALIAS,
-                    help='If provided, chooses a connection to work with.'),
-    )
-    option_list = BaseCommand.option_list + base_options
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '-f', '--filename',
+            action='store',
+            dest='filename',
+            default=False,
+            help='For Solr before 5.0.0. If provided, directs output\
+            to a XML schema.'
+        ),
+        parser.add_argument(
+            '-s', '--stdout',
+            action='store_true',
+            dest='stdout',
+            default=False,
+            help='For Solr before 5.0.0, print on stdout the schema.xml'
+        )
+        parser.add_argument(
+            '-u', '--using',
+            action='store',
+            dest='using',
+            default=constants.DEFAULT_ALIAS,
+            help='If provided, chooses a connection to work with.'
+        )
 
     def handle(self, **options):
         """Generates a Solr schema that reflects the indexes."""
-        from haystack import connections, connection_router
+        from haystack import connections
 
         using = options.get('using')
         backend = connections[using].get_backend()
 
         if not isinstance(backend, SolrSearchBackend):
-            raise ImproperlyConfigured("'%s' isn't configured as a SolrEngine)." % backend.connection_alias)
+            raise ImproperlyConfigured("'%s' isn't configured as a\
+                                       SolrEngine)."
+                                       % backend.connection_alias)
 
         if options.get('filename') or options.get('stdout'):
             schema_xml = self.build_template(using=using)
@@ -43,13 +60,18 @@ class Command(BaseCommand):
                 self.print_schema(schema_xml)
             return
 
-        content_field_name, fields = backend.build_schema(connections[using].get_unified_index().all_searchfields())
+        content_field_name, fields = backend.build_schema(connections[using]
+                                                          .get_unified_index()
+                                                          .all_searchfields())
 
         django_fields = [
-            dict(name=constants.ID, type="string", indexed="true", stored="true", multiValued="false", required="true"),
-            dict(name= constants.DJANGO_CT, type="string", indexed="true", stored="true", multiValued="false"),
-            dict(name= constants.DJANGO_ID, type="string", indexed="true", stored="true", multiValued="false"),
-            dict(name="_version_", type="long", indexed="true", stored ="true"),
+            dict(name=constants.ID, type="string", indexed="true",
+                 stored="true", multiValued="false", required="true"),
+            dict(name=constants.DJANGO_CT, type="string", indexed="true",
+                 stored="true", multiValued="false"),
+            dict(name=constants.DJANGO_ID, type="string", indexed="true",
+                 stored="true", multiValued="false"),
+            dict(name="_version_", type="long", indexed="true", stored="true"),
         ]
 
         admin = backend.get_schema_admin()
@@ -58,13 +80,17 @@ class Command(BaseCommand):
             self.log(field, resp, backend)
 
     def build_context(self, using):
-        from haystack import connections, connection_router
+        from haystack import connections
         backend = connections[using].get_backend()
 
         if not isinstance(backend, SolrSearchBackend):
-            raise ImproperlyConfigured("'%s' isn't configured as a SolrEngine)." % backend.connection_alias)
+            raise ImproperlyConfigured("'%s' isn't configured as a\
+                                       SolrEngine)."
+                                       % backend.connection_alias)
 
-        content_field_name, fields = backend.build_schema(connections[using].get_unified_index().all_searchfields())
+        content_field_name, fields = backend.build_schema(connections[using]
+                                                          .get_unified_index()
+                                                          .all_searchfields())
         return Context({
             'content_field_name': content_field_name,
             'fields': fields,
@@ -88,8 +114,10 @@ class Command(BaseCommand):
         sys.stderr.write("\n")
         sys.stderr.write("\n")
         sys.stderr.write("\n")
-        sys.stderr.write("Save the following output to 'schema.xml' and place it in your Solr configuration directory.\n")
-        sys.stderr.write("--------------------------------------------------------------------------------------------\n")
+        sys.stderr.write("Save the following output to 'schema.xml' and place\
+                         it in your Solr configuration directory.\n")
+        sys.stderr.write("-------------------------------------------------------\
+                         -------------------------------------\n")
         sys.stderr.write("\n")
         print(schema_xml)
 
@@ -97,11 +125,15 @@ class Command(BaseCommand):
         try:
             message = response.json()
         except ValueError:
-            raise Exception('unable to decode Solr API, are sure you started Solr and created the configured Core (%s) ?' % backend.conn.url)
+            raise Exception('unable to decode Solr API, are sure you started\
+                            Solr and created the configured Core (%s) ?'
+                            % backend.conn.url)
 
         if 'errors' in message:
-            sys.stdout.write("%s.\n" % [" ".join(err.get('errorMessages')) for err in message['errors']])
+            sys.stdout.write("%s.\n" % [" ".join(err.get('errorMessages'))
+                             for err in message['errors']])
         elif 'responseHeader' in message and 'status' in message['responseHeader']:
-            sys.stdout.write("Successfully created the field %s\n" % field['name'])
+            sys.stdout.write("Successfully created the field %s\n"
+                             % field['name'])
         else:
             sys.stdout.write("%s.\n" % message)
